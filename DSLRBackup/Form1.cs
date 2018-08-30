@@ -1,13 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using System.IO;
+using System.Windows.Forms;
 
 
 namespace DSLRBackup
@@ -21,91 +14,41 @@ namespace DSLRBackup
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            CargarDirs();
+            LoadFolders();
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
-            try
-            {
-                treeView1.Nodes.Clear(); 
-
-                var dirsOrigen = Directory.GetDirectories(textBox1.Text);
-                var dirsDestino = Directory.GetDirectories(textBox2.Text);
-
-                GuardarDirs();
-
-                foreach (string dirOrigen in dirsOrigen)
-                {
-                    if (!Directory.Exists(textBox2.Text + "\\" + GetDirectoryName(dirOrigen)))
-                    {
-                        treeView1.Nodes.Add(GetDirectoryName(dirOrigen) + "   *nuevo*");
-                    }
-                    else
-                    {
-                        CompararDirectorio(dirOrigen);
-                    }
-
-                }
-
-                foreach (string dirDestino in dirsDestino)
-                {
-                    if (!Directory.Exists(textBox1.Text + "\\" + GetDirectoryName(dirDestino)))
-                        treeView1.Nodes.Add(GetDirectoryName(dirDestino) + "   *borrado*");
-
-                }
-
-                //Comparar ficheros
-                var ficherosOrigen = Directory.GetFiles(textBox1.Text);
-                var ficherosDestino = Directory.GetFiles(textBox2.Text);
-
-                foreach (string ficheroOrigen in ficherosOrigen)
-                {
-                    string ficheroDestino = ficheroOrigen.Replace(textBox1.Text, textBox2.Text);
-                    if (File.Exists(ficheroDestino))
-                    {
-                        FileInfo fiOrigen = new FileInfo(ficheroOrigen);
-                        FileInfo fiDest = new FileInfo(ficheroDestino);
-
-                        if (fiOrigen.Length != fiDest.Length || fiOrigen.LastWriteTime != fiDest.LastWriteTime)
-                            treeView1.Nodes.Add(ficheroOrigen.Replace(textBox1.Text, "").Substring(1).ToUpper() + "   *modificado*");
-                    }
-                    else
-                    {
-                        treeView1.Nodes.Add(ficheroOrigen.Replace(textBox1.Text, "").Substring(1).ToUpper() + "   *fichero nuevo*");
-                    }
-
-                }
-            }
-            catch(Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
+            Compare();
         }
 
-        private void CargarDirs()
+        private void button2_Click(object sender, EventArgs e)
         {
-            if(File.Exists(Application.StartupPath + "\\config.txt"))
+            MakeBackup();
+        }
+
+        private void LoadFolders()
+        {
+            if(File.Exists(Application.StartupPath + "\\lastUse.txt"))
             {
-                var lineas = File.ReadAllLines(Application.StartupPath + "\\config.txt");
+                var lineas = File.ReadAllLines(Application.StartupPath + "\\lastUse.txt");
 
                 textBox1.Text = lineas[0];
                 textBox2.Text = lineas[1];
             }
         }
-
-
-        private void GuardarDirs()
+        
+        private void SaveFolders()
         {
-            if (File.Exists(Application.StartupPath + "\\config.txt"))
-                File.Delete(Application.StartupPath + "\\config.txt");
+            if (File.Exists(Application.StartupPath + "\\lastUse.txt"))
+                File.Delete(Application.StartupPath + "\\lastUse.txt");
 
             var lineas = new string[2];
 
             lineas[0] = textBox1.Text;
             lineas[1] = textBox2.Text;
 
-            File.WriteAllLines(Application.StartupPath + "\\config.txt", lineas);
+            File.WriteAllLines(Application.StartupPath + "\\lastUse.txt", lineas);
         }
 
         private string GetDirectoryName(string fullpath)
@@ -113,61 +56,125 @@ namespace DSLRBackup
             return fullpath.Substring(fullpath.LastIndexOf("\\")+1).ToUpper();
         }
 
-
-        private void CompararDirectorio(string dirOrigen)
+        private void Compare()
         {
-            var dirDestino = dirOrigen.Replace(textBox1.Text, textBox2.Text);
-
-            var subdirsOrigen = Directory.GetDirectories(dirOrigen);
-
-            //Llamada recursiva
-            foreach (string subDir in subdirsOrigen)
+            try
             {
-                CompararDirectorio(subDir);
-            }
+                treeView1.Nodes.Clear();
 
-            if(Directory.Exists(dirDestino))
-            {
-                //Comparar ficheros
-                var ficherosOrigen = Directory.GetFiles(dirOrigen);
-                var ficherosDestino = Directory.GetFiles(dirDestino);
+                var originFolders = Directory.GetDirectories(textBox1.Text);
+                var targetFolders = Directory.GetDirectories(textBox2.Text);
 
-                foreach(string ficheroOrigen in ficherosOrigen)
+                SaveFolders();
+
+                foreach (string folder in originFolders)
                 {
-                    string ficheroDestino = ficheroOrigen.Replace(textBox1.Text, textBox2.Text);
-                    if (File.Exists(ficheroDestino))
+                    if (!Directory.Exists(textBox2.Text + "\\" + GetDirectoryName(folder)))
                     {
-                        FileInfo fiOrigen = new FileInfo(ficheroOrigen);
-                        FileInfo fiDest = new FileInfo(ficheroDestino);
-
-                        if(fiOrigen.Length != fiDest.Length || fiOrigen.LastWriteTime != fiDest.LastWriteTime)
-                            treeView1.Nodes.Add(ficheroOrigen.Replace(textBox1.Text, "").Substring(1).ToUpper() + "   *modificado*");
+                        treeView1.Nodes.Add(GetDirectoryName(folder) + "   *new*");
                     }
                     else
                     {
-                        treeView1.Nodes.Add(ficheroOrigen.Replace(textBox1.Text, "").Substring(1).ToUpper() + "   *fichero nuevo*");
+                        CompareFolder(folder);
+                    }
+
+                }
+
+                foreach (string folder in targetFolders)
+                {
+                    if (!Directory.Exists(textBox1.Text + "\\" + GetDirectoryName(folder)))
+                        treeView1.Nodes.Add(GetDirectoryName(folder) + "   *deleted*");
+
+                }
+
+                //Compare files
+                var originFiles = Directory.GetFiles(textBox1.Text);
+                var targetFiles = Directory.GetFiles(textBox2.Text);
+
+                foreach (string file in originFiles)
+                {
+                    string targetFile = file.Replace(textBox1.Text, textBox2.Text);
+                    if (File.Exists(targetFile))
+                    {
+                        FileInfo fiOrigen = new FileInfo(file);
+                        FileInfo fiDest = new FileInfo(targetFile);
+
+                        if (fiOrigen.Length != fiDest.Length || fiOrigen.LastWriteTime != fiDest.LastWriteTime)
+                            treeView1.Nodes.Add(file.Replace(textBox1.Text, "").Substring(1).ToUpper() + "   *modified*");
+                    }
+                    else
+                    {
+                        treeView1.Nodes.Add(file.Replace(textBox1.Text, "").Substring(1).ToUpper() + "   *new file*");
+                    }
+                }
+
+                foreach (string file in targetFiles)
+                {
+                    string originFile = file.Replace(textBox2.Text, textBox1.Text);
+                    if (!File.Exists(originFile))
+                    {
+                        treeView1.Nodes.Add(file.Replace(textBox2.Text, "").Substring(1).ToUpper() + "   *deleted file*");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+
+        private void CompareFolder(string originPath)
+        {
+            var targetPath = originPath.Replace(textBox1.Text, textBox2.Text);
+
+            var originSubFolders = Directory.GetDirectories(originPath);
+
+            //recursive call
+            foreach (string subFolder in originSubFolders)
+            {
+                CompareFolder(subFolder);
+            }
+
+            if (Directory.Exists(targetPath))
+            {
+                //Compare files
+                var originFiles = Directory.GetFiles(originPath);
+                var targetFiles = Directory.GetFiles(targetPath);
+
+                foreach (string file in originFiles)
+                {
+                    string targetFile = file.Replace(textBox1.Text, textBox2.Text);
+                    if (File.Exists(targetFile))
+                    {
+                        FileInfo fiOrigen = new FileInfo(file);
+                        FileInfo fiDest = new FileInfo(targetFile);
+
+                        if (fiOrigen.Length != fiDest.Length || fiOrigen.LastWriteTime != fiDest.LastWriteTime)
+                            treeView1.Nodes.Add(file.Replace(textBox1.Text, "").Substring(1).ToUpper() + "   *modified*");
+                    }
+                    else
+                    {
+                        treeView1.Nodes.Add(file.Replace(textBox1.Text, "").Substring(1).ToUpper() + "   *new file*");
+                    }
+                }
+
+                foreach (string file in targetFiles)
+                {
+                    string originFile = file.Replace(textBox2.Text, textBox1.Text);
+                    if (!File.Exists(originFile))
+                    {
+                        treeView1.Nodes.Add(file.Replace(textBox2.Text, "").Substring(1).ToUpper() + "   *deleted file*");
                     }
                 }
             }
             else
             {
-                treeView1.Nodes.Add(dirOrigen.Replace(textBox1.Text, "").Substring(1).ToUpper() + "   *nuevo*");
+                treeView1.Nodes.Add(originPath.Replace(textBox1.Text, "").Substring(1).ToUpper() + "   *new*");
 
             }
         }
 
-        private void AgregrarNodo(string path, string accion)
-        {
-            var niveles = path.Split('\\');
-                        
-            foreach(string nivel in niveles)
-            {
-                
-
-            }
-        }
-
-        private void button2_Click(object sender, EventArgs e)
+        private void MakeBackup()
         {
             try
             {
@@ -175,15 +182,15 @@ namespace DSLRBackup
                 foreach (TreeNode node in treeView1.Nodes)
                 {
 
-                    if (node.Text.Contains("*nuevo*")) //nuevo directorio: copiar todo su contenido
+                    if (node.Text.Contains("*new*")) //new folder: copy all content
                     {
-                        string pathOrigen = textBox1.Text + "\\" + node.Text.Replace("*nuevo*", "").TrimEnd();
-                        string pathDestino = textBox2.Text + "\\" + node.Text.Replace("*nuevo*", "").TrimEnd();
+                        string pathOrigen = textBox1.Text + "\\" + node.Text.Replace("*new*", "").TrimEnd();
+                        string pathDestino = textBox2.Text + "\\" + node.Text.Replace("*new*", "").TrimEnd();
 
-                        //Crear directorio
-                        Directory.CreateDirectory(textBox2.Text + "\\" + node.Text.Replace("*nuevo*", "").TrimEnd());
+                        //Create folder
+                        Directory.CreateDirectory(textBox2.Text + "\\" + node.Text.Replace("*new*", "").TrimEnd());
 
-                        //Copiar sus subdirectorios y ficheros
+                        //Copy all folder files and subfolders to the new folder
                         foreach (string dirPath in Directory.GetDirectories(pathOrigen, "*", SearchOption.AllDirectories))
                             Directory.CreateDirectory(dirPath.Replace(pathOrigen, pathDestino));
 
@@ -193,31 +200,47 @@ namespace DSLRBackup
                             File.Copy(newPath, newPath.Replace(pathOrigen, pathDestino), true);
                         }
                     }
-                    if (node.Text.Contains("*fichero nuevo*"))
+                    if (node.Text.Contains("*new file*"))
                     {
-                        string ficheroOrigen = textBox1.Text + "\\" + node.Text.Replace("*fichero nuevo*", "").TrimEnd();
-                        string ficheroDestino = textBox2.Text + "\\" + node.Text.Replace("*fichero nuevo*", "").TrimEnd();
+                        string ficheroOrigen = textBox1.Text + "\\" + node.Text.Replace("*new file*", "").TrimEnd();
+                        string ficheroDestino = textBox2.Text + "\\" + node.Text.Replace("*new file*", "").TrimEnd();
 
                         label3.Text = ficheroOrigen.Replace(textBox1.Text, ""); this.Refresh();
                         File.Copy(ficheroOrigen, ficheroDestino);
                     }
-                    if (node.Text.Contains("*modificado*"))
+                    if (node.Text.Contains("*modified*"))
                     {
-                        string ficheroOrigen = textBox1.Text + "\\" + node.Text.Replace("*modificado*", "").TrimEnd();
-                        string ficheroDestino = textBox2.Text + "\\" + node.Text.Replace("*modificado*", "").TrimEnd();
+                        string ficheroOrigen = textBox1.Text + "\\" + node.Text.Replace("*modified*", "").TrimEnd();
+                        string ficheroDestino = textBox2.Text + "\\" + node.Text.Replace("*modified*", "").TrimEnd();
 
                         label3.Text = ficheroOrigen.Replace(textBox1.Text, ""); this.Refresh();
                         File.Copy(ficheroOrigen, ficheroDestino, true);
                     }
+
+                    if(radioButton2.Checked && node.Text.Contains("*deleted*"))
+                    {
+                        string targetFolder = textBox2.Text + "\\" + node.Text.Replace("*deleted*", "").TrimEnd();
+                        Directory.Delete(targetFolder);
+                    }
+
+                    if (radioButton2.Checked && node.Text.Contains("*deleted file*"))
+                    {
+                        string targetFile = textBox2.Text + "\\" + node.Text.Replace("*deleted file*", "").TrimEnd();
+                        File.Delete(targetFile);
+                    }
                 }
 
                 label3.Text = "";
-                MessageBox.Show("Proceso completado");
+                MessageBox.Show("Job done!");
+                Compare();
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
         }
+
+        
+
     }
 }
