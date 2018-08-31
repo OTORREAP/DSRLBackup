@@ -73,7 +73,7 @@
             // 
             this.treeView1.Location = new System.Drawing.Point(25, 86);
             this.treeView1.Name = "treeView1";
-            this.treeView1.Size = new System.Drawing.Size(414, 584);
+            this.treeView1.Size = new System.Drawing.Size(414, 578);
             this.treeView1.TabIndex = 5;
             // 
             // groupBox1
@@ -90,7 +90,6 @@
             // radioButton2
             // 
             this.radioButton2.AutoSize = true;
-            this.radioButton2.Enabled = false;
             this.radioButton2.Location = new System.Drawing.Point(18, 66);
             this.radioButton2.Name = "radioButton2";
             this.radioButton2.Size = new System.Drawing.Size(77, 17);
@@ -138,9 +137,9 @@
             // 
             // label3
             // 
-            this.label3.Location = new System.Drawing.Point(456, 232);
+            this.label3.Location = new System.Drawing.Point(22, 677);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(303, 23);
+            this.label3.Size = new System.Drawing.Size(417, 23);
             this.label3.TabIndex = 8;
             // 
             // Form1

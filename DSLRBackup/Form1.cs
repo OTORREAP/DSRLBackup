@@ -228,6 +228,8 @@ namespace DSLRBackup
                         string targetFile = textBox2.Text + "\\" + node.Text.Replace("*deleted file*", "").TrimEnd();
                         File.Delete(targetFile);
                     }
+
+                    this.Refresh();
                 }
 
                 label3.Text = "";
